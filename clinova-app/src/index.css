@@ -1,0 +1,141 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+:root {
+  --primary: #1A36A8;
+  --primary-light: #4A90E2;
+  --secondary: #30E3C2;
+  --bg-color: #F7F9FC;
+  --text-main: #121E42;
+  --text-muted: #6B7280;
+  --white: #FFFFFF;
+  --border-color: #E2E8F0;
+  --accent-purple: #E6E6FA; /* for calendar badge */
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: 'Inter', sans-serif;
+}
+
+body {
+  background-color: var(--bg-color);
+  min-height: 100vh;
+  min-height: 100dvh;
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  /* Safe area for notched devices */
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+#root {
+  width: 100%;
+  min-height: 100vh;
+  margin: 0 auto;
+  position: relative;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.mobile-wrapper {
+  width: 100%;
+  max-width: 414px; /* Keeps mobile preview on desktop browsers */
+  min-height: 100vh;
+  min-height: 100dvh;
+  margin: 0 auto;
+  background-color: var(--bg-color);
+  position: relative;
+  overflow-x: hidden;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+  display: flex;
+  flex-direction: column;
+}
+
+/* When running inside Capacitor native shell, use full width */
+body.capacitor-app .mobile-wrapper {
+  max-width: 100%;
+  box-shadow: none;
+}
+
+body.capacitor-app {
+  background-color: var(--bg-color);
+}
+
+/* Utilities */
+.btn-primary {
+  background: var(--primary-light);
+  background: linear-gradient(90deg, #1A36A8 0%, #3577F1 100%);
+  color: white;
+  border: none;
+  padding: 16px 24px;
+  border-radius: 99px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.btn-primary:active {
+  transform: scale(0.98);
+}
+
+.card {
+  background-color: var(--white);
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+}
+
+.text-gradient {
+  background: -webkit-linear-gradient(0deg, #1A36A8, #30E3C2);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+@keyframes ping {
+  75%, 100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  width: 100%;
+  max-width: 414px;
+  background-color: #FFFFFF;
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: row;
+  justify-content: space-around;
+  padding: 16px 8px env(safe-area-inset-bottom, 24px);
+  border-top-left-radius: 24px;
+  border-top-right-radius: 24px;
+  box-shadow: 0 -4px 12px rgba(0,0,0,0.02);
+  z-index: 10;
+  margin: 0 auto;
+  left: 0;
+  right: 0;
+}
+
+body.capacitor-app .bottom-nav {
+  max-width: 100%;
+}
