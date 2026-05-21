@@ -46,7 +46,8 @@ export const appointmentService = {
       .select(`
         *,
         patient:patients(first_name, last_name, date_of_birth),
-        doctor:profiles!appointments_doctor_id_fkey(first_name, last_name)
+        doctor:profiles!appointments_doctor_id_fkey(first_name, last_name),
+        clinic:clinics(name)
       `)
       .eq('date', today)
       // .eq('clinic_id', clinicId) // Descomentar cuando tengamos clinics configuradas correctamente

@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Search, Filter, Plus, FileText, MoreVertical, Building2, CreditCard, Users, Loader } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { clinicService } from '../services/clinicService';
+import { authService } from '../services/authService';
+import { subscriptionService } from '../services/subscriptionService';
 
 function AdminClinics() {
   const navigate = useNavigate();
@@ -9,12 +11,23 @@ function AdminClinics() {
   const [openMenuId, setOpenMenuId] = useState(null);
   const [clinics, setClinics] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [staffCount, setStaffCount] = useState(0);
+  const [pendingPayments, setPendingPayments] = useState(0);
 
   useEffect(() => {
     const loadClinics = async () => {
       try {
         const data = await clinicService.getClinics();
         setClinics(data || []);
+        // Count total staff (doctors + nurses)
+        const doctors = await authService.getUsersByRole('DOCTOR');
+        const nurses = await authService.getNurseCount();
+        setStaffCount((doctors || []).length + (nurses || 0));
+        // Count pending payments from subscriptions
+        try {
+          const subs = await subscriptionService.getSubscriptions();
+          setPendingPayments((subs || []).filter(s => s.status === 'PAST_DUE').length);
+        } catch (e) { console.log('Subscriptions not loaded'); }
       } catch (error) {
         console.error("Error al cargar clínicas", error);
       } finally {
@@ -62,15 +75,15 @@ function AdminClinics() {
           <div style={{ width: '48px', height: '48px', borderRadius: '12px', backgroundColor: '#FEE2E2', display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: '16px' }}>
             <CreditCard size={24} color="#DC2626" />
           </div>
-          <h3 style={{ fontSize: '32px', fontWeight: '800', color: '#0F172A', marginBottom: '4px' }}>0</h3>
+          <h3 style={{ fontSize: '32px', fontWeight: '800', color: '#0F172A', marginBottom: '4px' }}>{pendingPayments}</h3>
           <p style={{ fontSize: '14px', color: '#64748B', margin: 0, fontWeight: '500' }}>Pagos Pendientes</p>
         </div>
         <div style={{ backgroundColor: 'white', borderRadius: '16px', padding: '24px', boxShadow: '0 4px 12px rgba(0,0,0,0.03)', border: '1px solid #F1F5F9' }}>
           <div style={{ width: '48px', height: '48px', borderRadius: '12px', backgroundColor: '#F5F3FF', display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: '16px' }}>
             <Users size={24} color="#8B5CF6" />
           </div>
-          <h3 style={{ fontSize: '32px', fontWeight: '800', color: '#0F172A', marginBottom: '4px' }}>{clinics.length * 15}</h3>
-          <p style={{ fontSize: '14px', color: '#64748B', margin: 0, fontWeight: '500' }}>Licencias (Estimadas)</p>
+          <h3 style={{ fontSize: '32px', fontWeight: '800', color: '#0F172A', marginBottom: '4px' }}>{staffCount}</h3>
+          <p style={{ fontSize: '14px', color: '#64748B', margin: 0, fontWeight: '500' }}>Personal Registrado</p>
         </div>
       </div>
 
@@ -142,9 +155,9 @@ function AdminClinics() {
                           </div>
                         </div>
                       </td>
-                      <td style={{ padding: '16px 24px', fontSize: '14px', color: '#475569', fontWeight: '500' }}>Sin Asignar</td>
+                      <td style={{ padding: '16px 24px', fontSize: '14px', color: '#475569', fontWeight: '500' }}>{clinic.rfc || 'Sin RFC'}</td>
                       <td style={{ padding: '16px 24px', fontSize: '14px', color: '#1E293B', fontWeight: '600' }}>{clinic.contract_plan || 'N/A'}</td>
-                      <td style={{ padding: '16px 24px', fontSize: '14px', color: '#64748B', fontWeight: '500' }}>Ilimitado</td>
+                      <td style={{ padding: '16px 24px', fontSize: '14px', color: '#64748B', fontWeight: '500' }}>{clinic.contract_plan || 'Sin asignar'}</td>
                       <td style={{ padding: '16px 24px' }}>
                         <span style={{ backgroundColor: statusStyle.bg, color: statusStyle.color, padding: '6px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: '700', whiteSpace: 'nowrap' }}>
                           {status}
@@ -152,7 +165,7 @@ function AdminClinics() {
                       </td>
                       <td style={{ padding: '16px 24px', textAlign: 'right', position: 'relative' }}>
                       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
-                        <button onClick={(e) => { e.stopPropagation(); navigate('/admin/clinics/profile'); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#3B82F6', padding: '6px', borderRadius: '6px', transition: 'background 0.2s' }} onMouseOver={e => e.currentTarget.style.backgroundColor = '#EFF6FF'} onMouseOut={e => e.currentTarget.style.backgroundColor = 'transparent'} title="Detalles del Contrato">
+                        <button onClick={(e) => { e.stopPropagation(); navigate('/admin/clinics/profile', { state: { clinic } }); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#3B82F6', padding: '6px', borderRadius: '6px', transition: 'background 0.2s' }} onMouseOver={e => e.currentTarget.style.backgroundColor = '#EFF6FF'} onMouseOut={e => e.currentTarget.style.backgroundColor = 'transparent'} title="Detalles del Contrato">
                           <FileText size={18} />
                         </button>
                         <button onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === clinic.id ? null : clinic.id); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748B', padding: '6px', borderRadius: '6px', transition: 'background 0.2s' }} onMouseOver={e => e.currentTarget.style.backgroundColor = '#F1F5F9'} onMouseOut={e => e.currentTarget.style.backgroundColor = 'transparent'} title="Opciones">

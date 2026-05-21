@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { CreditCard, Building2, DollarSign, CheckCircle, Clock, AlertCircle, X } from 'lucide-react';
+import { CreditCard, Building2, DollarSign, CheckCircle, Clock, AlertCircle, X, Wrench } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { clinicService } from '../services/clinicService';
 import { subscriptionService } from '../services/subscriptionService';
 
 function AdminBilling() {
   const [clinics, setClinics] = useState([]);
+  const [subscriptions, setSubscriptions] = useState([]);
+  const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [selectedClinic, setSelectedClinic] = useState(null);
@@ -15,36 +17,33 @@ function AdminBilling() {
     reference: ''
   });
 
-  // Simulated subscription data (since tables may not exist yet)
-  const [clinicSubscriptions, setClinicSubscriptions] = useState({});
-
   const plans = [
     {
-      name: 'Básico',
-      price: '$999',
+      name: 'Individual',
+      price: '$85',
       period: '/mes',
       color: '#3B82F6',
       gradient: 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)',
       lightBg: '#EFF6FF',
-      features: ['Hasta 3 doctores', '1 sede', 'Citas ilimitadas']
+      features: ['1 usuario', 'Acceso básico', 'Soporte por email']
     },
     {
-      name: 'Pro',
-      price: '$2,499',
-      period: '/mes',
+      name: 'Clínica Pequeña',
+      price: '$80K-$100K',
+      period: '/año',
       color: '#8B5CF6',
       gradient: 'linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)',
       lightBg: '#F5F3FF',
-      features: ['Hasta 10 doctores', '3 sedes', 'Reportes avanzados']
+      features: ['Múltiples doctores', 'Reportes avanzados', 'Soporte prioritario']
     },
     {
-      name: 'Enterprise',
-      price: '$4,999',
-      period: '/mes',
+      name: 'Hospital Grande',
+      price: '$120K-$180K',
+      period: '/año',
       color: '#10B981',
       gradient: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
       lightBg: '#ECFDF5',
-      features: ['Doctores ilimitados', 'Sedes ilimitadas', 'Soporte prioritario']
+      features: ['Doctores ilimitados', 'Sedes ilimitadas', 'SLA garantizado', '+ Mantenimiento $6,000/mes']
     }
   ];
 
@@ -54,28 +53,13 @@ function AdminBilling() {
         const clinicsData = await clinicService.getClinics();
         setClinics(clinicsData || []);
 
-        // Initialize simulated subscriptions for each clinic
-        const subs = {};
-        (clinicsData || []).forEach((clinic, idx) => {
-          const statuses = ['Activa', 'Prueba', 'Vencida'];
-          const planNames = ['Básico', 'Pro', 'Enterprise'];
-          const amounts = [999, 2499, 4999];
-          const planIdx = idx % 3;
-          subs[clinic.id] = {
-            plan: planNames[planIdx],
-            status: statuses[idx % 3],
-            lastPayment: idx % 3 === 2 ? null : new Date(Date.now() - (idx * 5 * 86400000)).toISOString().split('T')[0],
-            amount: amounts[planIdx]
-          };
-        });
-        setClinicSubscriptions(subs);
+        // Load real subscriptions from Supabase
+        const subs = await subscriptionService.getSubscriptions();
+        setSubscriptions(subs || []);
 
-        // Try fetching real subscriptions (may fail if table doesn't exist)
-        try {
-          await subscriptionService.getSubscriptions();
-        } catch (e) {
-          console.log('Subscriptions table not yet created, using simulated data');
-        }
+        // Load real payments
+        const pays = await subscriptionService.getPayments();
+        setPayments(pays || []);
       } catch (error) {
         console.error('Error fetching data:', error);
         toast.error('Error cargando datos de facturación');
@@ -86,32 +70,54 @@ function AdminBilling() {
     fetchData();
   }, []);
 
+  // Helper: get subscription for a clinic
+  const getClinicSubscription = (clinicId) => {
+    return subscriptions.find(s => s.clinic_id === clinicId);
+  };
+
+  // Helper: get last payment for a clinic
+  const getLastPayment = (clinicId) => {
+    return payments.find(p => p.clinic_id === clinicId);
+  };
+
+  const getStatusLabel = (status) => {
+    switch (status) {
+      case 'ACTIVE': return 'Activa';
+      case 'PAST_DUE': return 'Vencida';
+      case 'CANCELLED': return 'Cancelada';
+      case 'TRIAL': return 'Prueba';
+      default: return 'Sin suscripción';
+    }
+  };
+
   const getStatusStyle = (status) => {
     switch (status) {
-      case 'Activa': return { bg: '#D1FAE5', color: '#065F46', icon: CheckCircle };
-      case 'Vencida': return { bg: '#FEE2E2', color: '#991B1B', icon: AlertCircle };
-      case 'Prueba': return { bg: '#FEF3C7', color: '#92400E', icon: Clock };
+      case 'ACTIVE': return { bg: '#D1FAE5', color: '#065F46', icon: CheckCircle };
+      case 'PAST_DUE': return { bg: '#FEE2E2', color: '#991B1B', icon: AlertCircle };
+      case 'CANCELLED': return { bg: '#FEE2E2', color: '#991B1B', icon: X };
+      case 'TRIAL': return { bg: '#FEF3C7', color: '#92400E', icon: Clock };
       default: return { bg: '#F1F5F9', color: '#475569', icon: Clock };
     }
   };
 
-  const activeCount = Object.values(clinicSubscriptions).filter(s => s.status === 'Activa').length;
-  const pendingCount = Object.values(clinicSubscriptions).filter(s => s.status === 'Vencida').length;
-  const totalRevenue = Object.values(clinicSubscriptions)
-    .filter(s => s.status === 'Activa')
-    .reduce((sum, s) => sum + s.amount, 0);
+  // Calculate KPIs from real data
+  const activeCount = subscriptions.filter(s => s.status === 'ACTIVE').length;
+  const pendingPayments = subscriptions.filter(s => s.status === 'PAST_DUE').length;
+  const totalRevenue = payments
+    .filter(p => p.status === 'COMPLETED')
+    .reduce((sum, p) => sum + (p.amount || 0), 0);
 
   const kpis = [
     { title: 'Ingresos del Mes', value: `$${totalRevenue.toLocaleString()}`, subtitle: 'Total facturado', icon: DollarSign, color: '#10B981', bg: '#ECFDF5' },
     { title: 'Clínicas Activas', value: activeCount.toString(), subtitle: 'Con suscripción vigente', icon: Building2, color: '#3B82F6', bg: '#EFF6FF' },
-    { title: 'Pagos Pendientes', value: pendingCount.toString(), subtitle: 'Requieren atención', icon: CreditCard, color: '#F59E0B', bg: '#FFFBEB' }
+    { title: 'Pagos Pendientes', value: pendingPayments.toString(), subtitle: 'Requieren atención', icon: CreditCard, color: '#F59E0B', bg: '#FFFBEB' }
   ];
 
   const handleOpenModal = (clinic) => {
     setSelectedClinic(clinic);
-    const sub = clinicSubscriptions[clinic.id];
+    const sub = getClinicSubscription(clinic.id);
     setPaymentForm({
-      amount: sub ? sub.amount.toString() : '',
+      amount: sub ? sub.amount?.toString() || '' : '',
       method: 'SPEI',
       reference: ''
     });
@@ -125,36 +131,29 @@ function AdminBilling() {
     }
 
     try {
-      // Try to register in Supabase
-      try {
-        await subscriptionService.registerPayment({
-          clinic_id: selectedClinic.id,
-          amount: parseFloat(paymentForm.amount),
-          method: paymentForm.method,
-          reference: paymentForm.reference,
-          created_at: new Date().toISOString()
-        });
-      } catch (e) {
-        console.log('Payments table not available, simulating locally');
-      }
+      const sub = getClinicSubscription(selectedClinic.id);
 
-      // Update local state
-      setClinicSubscriptions(prev => ({
-        ...prev,
-        [selectedClinic.id]: {
-          ...prev[selectedClinic.id],
-          status: 'Activa',
-          lastPayment: new Date().toISOString().split('T')[0],
-          amount: parseFloat(paymentForm.amount)
-        }
-      }));
+      // Register payment in Supabase
+      await subscriptionService.registerPayment({
+        clinic_id: selectedClinic.id,
+        subscription_id: sub?.id || null,
+        amount: parseFloat(paymentForm.amount),
+        method: paymentForm.method.toUpperCase(),
+        reference: paymentForm.reference,
+        status: 'COMPLETED',
+        paid_at: new Date().toISOString(),
+      });
 
-      toast.success(`Pago registrado para ${selectedClinic.name}`);
+      // Reload data
+      const updatedPayments = await subscriptionService.getPayments();
+      setPayments(updatedPayments || []);
+
+      toast.success(`Pago de $${parseFloat(paymentForm.amount).toLocaleString()} registrado para ${selectedClinic.name}`);
       setShowModal(false);
       setSelectedClinic(null);
     } catch (error) {
       console.error('Error registering payment:', error);
-      toast.error('Error al registrar pago');
+      toast.error('Error al registrar pago: ' + (error.message || 'Intenta de nuevo'));
     }
   };
 
@@ -191,7 +190,6 @@ function AdminBilling() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '20px' }}>
           {plans.map((plan, idx) => (
             <div key={idx} style={{ borderRadius: '14px', border: '1px solid #F1F5F9', overflow: 'hidden', transition: 'transform 0.2s, box-shadow 0.2s', cursor: 'default' }} onMouseOver={e => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = '0 12px 32px rgba(0,0,0,0.08)'; }} onMouseOut={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none'; }}>
-              {/* Colored top bar */}
               <div style={{ height: '6px', background: plan.gradient }} />
               <div style={{ padding: '24px' }}>
                 <div style={{ display: 'inline-block', padding: '4px 12px', borderRadius: '20px', backgroundColor: plan.lightBg, marginBottom: '16px' }}>
@@ -214,6 +212,12 @@ function AdminBilling() {
               </div>
             </div>
           ))}
+        </div>
+
+        {/* Maintenance fee note */}
+        <div style={{ marginTop: '20px', padding: '14px 20px', backgroundColor: '#FFFBEB', borderRadius: '12px', border: '1px solid #FDE68A', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <Wrench size={18} color="#92400E" />
+          <span style={{ fontSize: '13px', color: '#92400E', fontWeight: '600' }}>Cuota mensual de mantenimiento: $6,000 MXN (soporte y actualizaciones para todos los planes)</span>
         </div>
       </div>
 
@@ -259,10 +263,15 @@ function AdminBilling() {
                   </td>
                 </tr>
               ) : (
-                clinics.map((clinic, idx) => {
-                  const sub = clinicSubscriptions[clinic.id] || { plan: 'Prueba', status: 'Prueba', lastPayment: null, amount: 0 };
-                  const statusStyle = getStatusStyle(sub.status);
+                clinics.map((clinic) => {
+                  const sub = getClinicSubscription(clinic.id);
+                  const lastPayment = getLastPayment(clinic.id);
+                  const statusKey = sub?.status || 'none';
+                  const statusStyle = getStatusStyle(statusKey);
                   const StatusIcon = statusStyle.icon;
+                  const planName = sub?.plan || clinic.contract_plan || 'Sin plan';
+                  const planMatch = plans.find(p => p.name === planName);
+                  
                   return (
                     <tr key={clinic.id} style={{ borderBottom: '1px solid #F1F5F9', transition: 'background 0.2s' }} onMouseOver={e => e.currentTarget.style.backgroundColor = '#F8FAFC'} onMouseOut={e => e.currentTarget.style.backgroundColor = 'transparent'}>
                       <td style={{ padding: '16px 8px' }}>
@@ -272,28 +281,28 @@ function AdminBilling() {
                           </div>
                           <div>
                             <p style={{ margin: 0, fontSize: '14px', fontWeight: '700', color: '#1E293B' }}>{clinic.name}</p>
-                            <p style={{ margin: 0, fontSize: '12px', color: '#94A3B8' }}>{clinic.email || clinic.phone || 'Sin contacto'}</p>
+                            <p style={{ margin: 0, fontSize: '12px', color: '#94A3B8' }}>{clinic.address || 'Sin dirección'}</p>
                           </div>
                         </div>
                       </td>
                       <td style={{ padding: '16px 8px' }}>
-                        <span style={{ fontSize: '13px', fontWeight: '700', color: plans.find(p => p.name === sub.plan)?.color || '#64748B', backgroundColor: plans.find(p => p.name === sub.plan)?.lightBg || '#F1F5F9', padding: '4px 12px', borderRadius: '20px' }}>
-                          {sub.plan}
+                        <span style={{ fontSize: '13px', fontWeight: '700', color: planMatch?.color || '#64748B', backgroundColor: planMatch?.lightBg || '#F1F5F9', padding: '4px 12px', borderRadius: '20px' }}>
+                          {planName}
                         </span>
                       </td>
                       <td style={{ padding: '16px 8px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                           <StatusIcon size={14} color={statusStyle.color} />
                           <span style={{ backgroundColor: statusStyle.bg, color: statusStyle.color, padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: '700' }}>
-                            {sub.status}
+                            {getStatusLabel(statusKey)}
                           </span>
                         </div>
                       </td>
                       <td style={{ padding: '16px 8px', fontSize: '14px', color: '#475569' }}>
-                        {sub.lastPayment || <span style={{ color: '#CBD5E1', fontStyle: 'italic' }}>Sin pagos</span>}
+                        {lastPayment?.paid_at ? new Date(lastPayment.paid_at).toLocaleDateString('es-MX') : <span style={{ color: '#CBD5E1', fontStyle: 'italic' }}>Sin pagos</span>}
                       </td>
                       <td style={{ padding: '16px 8px', fontSize: '14px', fontWeight: '700', color: '#0F172A' }}>
-                        ${sub.amount.toLocaleString()}
+                        {lastPayment ? `$${lastPayment.amount?.toLocaleString()}` : '$0'}
                       </td>
                       <td style={{ padding: '16px 8px' }}>
                         <button
@@ -321,7 +330,6 @@ function AdminBilling() {
           <div style={{ backgroundColor: 'white', borderRadius: '20px', padding: '32px', width: '100%', maxWidth: '480px', boxShadow: '0 24px 48px rgba(0,0,0,0.12)', position: 'relative', animation: 'modalIn 0.3s ease' }} onClick={e => e.stopPropagation()}>
             <style>{`@keyframes modalIn { from { opacity: 0; transform: scale(0.95) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }`}</style>
 
-            {/* Modal Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px' }}>
               <div>
                 <h3 style={{ fontSize: '20px', fontWeight: '800', color: '#1E293B', margin: '0 0 4px 0' }}>Registrar Pago</h3>
@@ -332,7 +340,6 @@ function AdminBilling() {
               </button>
             </div>
 
-            {/* Clinic Name (readonly) */}
             <div style={{ marginBottom: '20px' }}>
               <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#475569', marginBottom: '8px' }}>Clínica</label>
               <div style={{ padding: '12px 16px', borderRadius: '12px', backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0', fontSize: '14px', color: '#1E293B', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -341,7 +348,6 @@ function AdminBilling() {
               </div>
             </div>
 
-            {/* Amount */}
             <div style={{ marginBottom: '20px' }}>
               <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#475569', marginBottom: '8px' }}>Monto (MXN)</label>
               <div style={{ position: 'relative' }}>
@@ -358,38 +364,35 @@ function AdminBilling() {
               </div>
             </div>
 
-            {/* Payment Method */}
             <div style={{ marginBottom: '20px' }}>
               <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#475569', marginBottom: '8px' }}>Método de Pago</label>
               <select
                 value={paymentForm.method}
                 onChange={e => setPaymentForm(prev => ({ ...prev, method: e.target.value }))}
-                style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #E2E8F0', fontSize: '14px', color: '#1E293B', outline: 'none', backgroundColor: 'white', cursor: 'pointer', transition: 'border-color 0.2s', appearance: 'none', backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2394A3B8' d='M6 8L1 3h10z'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 16px center', fontWeight: '600', boxSizing: 'border-box' }}
+                style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #E2E8F0', fontSize: '14px', color: '#1E293B', outline: 'none', backgroundColor: 'white', cursor: 'pointer', transition: 'border-color 0.2s', fontWeight: '600', boxSizing: 'border-box' }}
                 onFocus={e => e.target.style.borderColor = '#3B82F6'}
                 onBlur={e => e.target.style.borderColor = '#E2E8F0'}
               >
-                <option value="OXXO">OXXO</option>
                 <option value="SPEI">SPEI (Transferencia)</option>
-                <option value="Tarjeta">Tarjeta de Crédito/Débito</option>
-                <option value="Otro">Otro</option>
+                <option value="OXXO">OXXO</option>
+                <option value="CARD">Tarjeta de Crédito/Débito</option>
+                <option value="OTHER">Otro</option>
               </select>
             </div>
 
-            {/* Reference */}
             <div style={{ marginBottom: '28px' }}>
               <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#475569', marginBottom: '8px' }}>Número de Referencia</label>
               <input
                 type="text"
                 value={paymentForm.reference}
                 onChange={e => setPaymentForm(prev => ({ ...prev, reference: e.target.value }))}
-                placeholder="Ej: REF-2024-001"
+                placeholder="Ej: REF-2026-001"
                 style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #E2E8F0', fontSize: '14px', color: '#1E293B', outline: 'none', transition: 'border-color 0.2s', boxSizing: 'border-box', fontWeight: '500' }}
                 onFocus={e => e.target.style.borderColor = '#3B82F6'}
                 onBlur={e => e.target.style.borderColor = '#E2E8F0'}
               />
             </div>
 
-            {/* Confirm Button */}
             <button
               onClick={handleRegisterPayment}
               style={{ width: '100%', padding: '14px', borderRadius: '12px', border: 'none', background: 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)', color: 'white', fontSize: '15px', fontWeight: '700', cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 4px 12px rgba(59,130,246,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}

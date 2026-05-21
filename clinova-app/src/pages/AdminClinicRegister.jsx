@@ -118,17 +118,23 @@ function AdminClinicRegister() {
               <label style={{ fontSize: '13px', fontWeight: '700', color: '#64748B' }}>Seleccionar Plan de Licencias</label>
               <select name="contract_plan" value={formData.contract_plan} onChange={handleChange} required style={{ padding: '12px 16px', borderRadius: '10px', border: '1px solid #E2E8F0', fontSize: '14px', outline: 'none', backgroundColor: 'white', cursor: 'pointer' }}>
                 <option value="">Seleccione un plan...</option>
-                <option value="Plan Básico">Plan Básico (Hasta 10 Médicos) - $3,000 MXN/mes</option>
-                <option value="Plan Plus">Plan Plus (Hasta 25 Médicos) - $7,000 MXN/mes</option>
-                <option value="Plan Corporativo">Plan Corporativo (Ilimitado) - $15,000 MXN/mes</option>
+                <option value="Individual">Usuario Individual - $85 MXN/mes</option>
+                <option value="Clínica Pequeña">Clínica Pequeña - $80,000 - $100,000 MXN/año</option>
+                <option value="Hospital Grande">Hospital Grande - $120,000 - $180,000 MXN/año</option>
               </select>
             </div>
             
+            <div style={{ padding: '12px 16px', backgroundColor: '#FFFBEB', borderRadius: '10px', border: '1px solid #FDE68A', fontSize: '13px', color: '#92400E', fontWeight: '600' }}>
+              💡 Cuota mensual de mantenimiento: $6,000 MXN (para soporte y actualizaciones)
+            </div>
+
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <label style={{ fontSize: '13px', fontWeight: '700', color: '#64748B' }}>Método de Pago Acordado</label>
               <select required style={{ padding: '12px 16px', borderRadius: '10px', border: '1px solid #E2E8F0', fontSize: '14px', outline: 'none', backgroundColor: 'white', cursor: 'pointer' }}>
-                <option value="stripe">Cobro Automático Mensual (Tarjeta de Crédito vía Stripe)</option>
-                <option value="transferencia">Transferencia Electrónica (Facturación Manual)</option>
+                <option value="spei">Transferencia Bancaria (SPEI)</option>
+                <option value="oxxo">Depósito en OXXO</option>
+                <option value="tarjeta">Tarjeta de Crédito/Débito</option>
+                <option value="otro">Otro método acordado</option>
               </select>
             </div>
           </div>

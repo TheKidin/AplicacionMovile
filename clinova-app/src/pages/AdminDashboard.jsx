@@ -34,7 +34,7 @@ function AdminDashboard() {
           patients: uniquePatientsMap.size,
           doctors: (doctors || []).length,
           appointmentsToday: (appointments || []).length,
-          income: (appointments || []).length * 800 // Estimado $800 por cita
+          income: (appointments || []).length // Citas del día en vez de ingreso ficticio
         });
 
         const pending = await authService.getPendingStaff();
@@ -57,7 +57,7 @@ function AdminDashboard() {
             id: '#' + app.id.substring(0,4).toUpperCase(),
             patient: `${app.patient?.first_name || ''} ${app.patient?.last_name || ''}`,
             doctor: app.doctor ? `Dr. ${app.doctor.last_name || app.doctor.first_name}` : 'Médico Asignado',
-            clinic: 'Sede Central',
+            clinic: app.clinic?.name || 'Sin sede asignada',
             time: app.time.substring(0,5),
             status: app.status === 'COMPLETED' ? 'Completada' : app.status === 'IN_PROGRESS' ? 'En Proceso' : app.status === 'WAITING' ? 'En Espera' : 'Agendada'
           };
@@ -77,7 +77,7 @@ function AdminDashboard() {
     { title: 'Pacientes Registrados', value: stats.patients.toString(), change: 'En Sistema', isPositive: true, icon: Users, color: '#3B82F6', bg: '#EFF6FF' },
     { title: 'Médicos Activos', value: stats.doctors.toString(), change: 'En Sistema', isPositive: true, icon: UserCog, color: '#8B5CF6', bg: '#F5F3FF' },
     { title: 'Solicitudes Pendientes', value: pendingStaff.length.toString(), change: pendingStaff.length > 0 ? 'Requiere atención' : 'Sin pendientes', isPositive: pendingStaff.length === 0, icon: Clock, color: '#F59E0B', bg: '#FFFBEB' },
-    { title: 'Ingresos Estimados', value: `$${stats.income.toLocaleString()}`, change: 'Base $800/cita', isPositive: true, icon: TrendingUp, color: '#10B981', bg: '#ECFDF5' },
+    { title: 'Citas del Día', value: stats.income.toString(), change: 'Hoy', isPositive: true, icon: TrendingUp, color: '#10B981', bg: '#ECFDF5' },
   ];
 
   const getStatusColor = (status) => {

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User, Lock, Settings, CreditCard, Save, Globe, Building2 } from 'lucide-react';
+import { User, Lock, Settings, Save, Globe, Building2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { authService } from '../services/authService';
 import { useAuth } from '../context/AuthContext';
@@ -31,9 +31,12 @@ const AdminSettings = () => {
   const handleProfileSave = async () => {
     setSavingProfile(true);
     try {
-      await new Promise((r) => setTimeout(r, 600));
+      if (currentUser?.id) {
+        await authService.updateProfile(currentUser.id, { first_name: profileForm.name });
+      }
       toast.success('Perfil actualizado correctamente');
-    } catch {
+    } catch (err) {
+      console.error(err);
       toast.error('Error al actualizar el perfil');
     } finally {
       setSavingProfile(false);
@@ -55,11 +58,12 @@ const AdminSettings = () => {
     }
     setSavingPassword(true);
     try {
-      await new Promise((r) => setTimeout(r, 600));
+      await authService.changePassword(passwordForm.newPassword);
       toast.success('Contraseña actualizada correctamente');
       setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
-    } catch {
-      toast.error('Error al cambiar la contraseña');
+    } catch (err) {
+      console.error(err);
+      toast.error('Error al cambiar la contraseña: ' + (err.message || ''));
     } finally {
       setSavingPassword(false);
     }
@@ -68,44 +72,17 @@ const AdminSettings = () => {
   const handleSystemSave = async () => {
     setSavingSystem(true);
     try {
-      await new Promise((r) => setTimeout(r, 600));
+      // System config is saved locally for now (no settings table yet)
+      localStorage.setItem('clinova_system_config', JSON.stringify(systemForm));
       toast.success('Configuración del sistema guardada');
-    } catch {
+    } catch (err) {
+      console.error(err);
       toast.error('Error al guardar la configuración');
     } finally {
       setSavingSystem(false);
     }
   };
 
-  const plans = [
-    {
-      name: 'Básico',
-      price: '$999',
-      period: '/mes',
-      color: '#3B82F6',
-      gradient: 'linear-gradient(135deg, #3B82F6 0%, #6366F1 100%)',
-      features: ['Hasta 500 pacientes', 'Reportes básicos', 'Soporte por email', '1 usuario administrador'],
-      popular: false,
-    },
-    {
-      name: 'Pro',
-      price: '$2,499',
-      period: '/mes',
-      color: '#1B2C66',
-      gradient: 'linear-gradient(135deg, #1B2C66 0%, #3B4F9E 100%)',
-      features: ['Hasta 2,000 pacientes', 'Reportes avanzados', 'Soporte prioritario', '5 usuarios administradores', 'API access'],
-      popular: true,
-    },
-    {
-      name: 'Enterprise',
-      price: '$4,999',
-      period: '/mes',
-      color: '#0F172A',
-      gradient: 'linear-gradient(135deg, #0F172A 0%, #1E293B 100%)',
-      features: ['Pacientes ilimitados', 'Reportes personalizados', 'Soporte 24/7', 'Usuarios ilimitados', 'API access', 'SLA garantizado'],
-      popular: false,
-    },
-  ];
 
   const timezones = [
     { value: 'America/Mexico_City', label: 'Ciudad de México (GMT-6)' },
@@ -464,120 +441,6 @@ const AdminSettings = () => {
         </div>
       </div>
 
-      {/* ── 4. Planes de Suscripción ── */}
-      <div style={styles.card}>
-        <SectionHeader
-          icon={CreditCard}
-          iconBg="linear-gradient(135deg, #1B2C66 0%, #3B4F9E 100%)"
-          title="Planes de Suscripción"
-          subtitle="Elige el plan que mejor se adapte a tu clínica"
-        />
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 20 }}>
-          {plans.map((plan) => (
-            <div
-              key={plan.name}
-              style={{
-                position: 'relative',
-                borderRadius: 16,
-                border: plan.popular ? '2px solid #30E3C2' : '2px solid #E2E8F0',
-                overflow: 'hidden',
-                transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-                cursor: 'pointer',
-                backgroundColor: '#FFFFFF',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-4px)';
-                e.currentTarget.style.boxShadow = '0 12px 32px rgba(0,0,0,0.1)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = 'none';
-              }}
-            >
-              {/* Popular badge */}
-              {plan.popular && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    top: 12,
-                    right: 12,
-                    background: 'linear-gradient(135deg, #30E3C2 0%, #06D6A0 100%)',
-                    color: '#0F172A',
-                    fontSize: 11,
-                    fontWeight: 800,
-                    padding: '4px 12px',
-                    borderRadius: 20,
-                    letterSpacing: '0.04em',
-                    textTransform: 'uppercase',
-                  }}
-                >
-                  Popular
-                </div>
-              )}
-
-              {/* Gradient header */}
-              <div style={{ background: plan.gradient, padding: '28px 24px 20px' }}>
-                <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: 13, fontWeight: 700, margin: 0, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                  {plan.name}
-                </p>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginTop: 8 }}>
-                  <span style={{ color: '#FFFFFF', fontSize: 36, fontWeight: 900, letterSpacing: '-0.02em' }}>{plan.price}</span>
-                  <span style={{ color: 'rgba(255,255,255,0.65)', fontSize: 14, fontWeight: 600 }}>{plan.period}</span>
-                </div>
-              </div>
-
-              {/* Features */}
-              <div style={{ padding: '20px 24px 24px' }}>
-                <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  {plan.features.map((f, i) => (
-                    <li key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, color: '#475569', fontWeight: 500 }}>
-                      <span
-                        style={{
-                          width: 20,
-                          height: 20,
-                          borderRadius: '50%',
-                          backgroundColor: '#ECFDF5',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          flexShrink: 0,
-                          fontSize: 12,
-                          color: '#10B981',
-                          fontWeight: 700,
-                        }}
-                      >
-                        ✓
-                      </span>
-                      {f}
-                    </li>
-                  ))}
-                </ul>
-
-                <button
-                  style={{
-                    width: '100%',
-                    marginTop: 20,
-                    padding: '12px 0',
-                    borderRadius: 12,
-                    border: plan.popular ? 'none' : '2px solid #E2E8F0',
-                    background: plan.popular ? 'linear-gradient(135deg, #1B2C66 0%, #3B4F9E 100%)' : 'transparent',
-                    color: plan.popular ? '#FFFFFF' : '#1E293B',
-                    fontSize: 14,
-                    fontWeight: 700,
-                    fontFamily: "'Inter', sans-serif",
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                  }}
-                  onClick={() => toast.success(`Plan ${plan.name} seleccionado`)}
-                >
-                  {plan.popular ? 'Seleccionar plan' : 'Elegir plan'}
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
     </div>
   );
 };
