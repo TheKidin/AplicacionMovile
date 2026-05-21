@@ -8,6 +8,7 @@ CREATE TABLE public.profiles (
   first_name TEXT,
   last_name TEXT,
   role TEXT CHECK (role IN ('ADMIN', 'DOCTOR', 'NURSE', 'PATIENT')),
+  status TEXT DEFAULT 'PENDING' CHECK (status IN ('ACTIVE', 'PENDING', 'SUSPENDED')),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW())
 );
 
@@ -18,6 +19,7 @@ CREATE TABLE public.clinics (
   address TEXT,
   rfc TEXT,
   contract_plan TEXT,
+  status TEXT DEFAULT 'Pago Pendiente',
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW())
 );
 
@@ -62,12 +64,37 @@ CREATE TABLE public.appointments (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW())
 );
 
+-- 6. Tabla de Suscripciones (Subscriptions)
+CREATE TABLE public.subscriptions (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  clinic_id UUID REFERENCES public.clinics(id) ON DELETE CASCADE,
+  plan TEXT CHECK (plan IN ('Individual', 'Clínica Pequeña', 'Hospital Grande')),
+  status TEXT CHECK (status IN ('ACTIVE', 'PAST_DUE', 'CANCELLED', 'TRIAL')) DEFAULT 'PAST_DUE',
+  amount NUMERIC,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW())
+);
+
+-- 7. Tabla de Pagos (Payments)
+CREATE TABLE public.payments (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  clinic_id UUID REFERENCES public.clinics(id) ON DELETE CASCADE,
+  subscription_id UUID REFERENCES public.subscriptions(id) ON DELETE SET NULL,
+  amount NUMERIC NOT NULL,
+  method TEXT CHECK (method IN ('SPEI', 'OXXO', 'CARD', 'OTHER')),
+  reference TEXT,
+  status TEXT DEFAULT 'COMPLETED',
+  paid_at TIMESTAMP WITH TIME ZONE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW())
+);
+
 -- Habilitar Row Level Security (RLS) en todas las tablas
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.clinics ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.patients ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.vitals ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.appointments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.subscriptions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.payments ENABLE ROW LEVEL SECURITY;
 
 -- Políticas Básicas (Permitir todo por ahora para desarrollo rápido, LUEGO DEBES RESTRINGIR)
 CREATE POLICY "Permitir lectura y escritura a usuarios autenticados en profiles" ON public.profiles FOR ALL USING (auth.role() = 'authenticated');
@@ -75,3 +102,5 @@ CREATE POLICY "Permitir lectura y escritura a usuarios autenticados en clinics" 
 CREATE POLICY "Permitir lectura y escritura a usuarios autenticados en patients" ON public.patients FOR ALL USING (auth.role() = 'authenticated');
 CREATE POLICY "Permitir lectura y escritura a usuarios autenticados en vitals" ON public.vitals FOR ALL USING (auth.role() = 'authenticated');
 CREATE POLICY "Permitir lectura y escritura a usuarios autenticados en appointments" ON public.appointments FOR ALL USING (auth.role() = 'authenticated');
+CREATE POLICY "Permitir lectura y escritura a usuarios autenticados en subscriptions" ON public.subscriptions FOR ALL USING (auth.role() = 'authenticated');
+CREATE POLICY "Permitir lectura y escritura a usuarios autenticados en payments" ON public.payments FOR ALL USING (auth.role() = 'authenticated');
