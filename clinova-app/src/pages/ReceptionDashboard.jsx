@@ -103,8 +103,8 @@ function ReceptionDashboard() {
             <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Nurse" alt="avatar" style={{ width: '100%' }} />
           </div>
           <div>
-            <h1 style={{ fontSize: '18px', fontWeight: '800', color: '#1B2C66' }}>Enf. Made</h1>
-            <p style={{ fontSize: '12px', color: '#6B7280', fontWeight: '600' }}>Área de Triaje • Sede Central</p>
+            <h1 style={{ fontSize: '18px', fontWeight: '800', color: '#1B2C66' }}>{currentUser ? `${currentUser.first_name || ''} ${currentUser.last_name || ''}` : 'Personal'}</h1>
+            <p style={{ fontSize: '12px', color: '#6B7280', fontWeight: '600' }}>Recepción • Sede Principal</p>
           </div>
         </div>
         <div style={{ position: 'relative', cursor: 'pointer' }} onClick={() => setShowNotifications(!showNotifications)}>
