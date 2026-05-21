@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ArrowLeft, Building2, User, CreditCard, ShieldCheck, CheckCircle, Loader } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { clinicService } from '../services/clinicService';
+import { subscriptionService } from '../services/subscriptionService';
 
 function AdminClinicRegister() {
   const navigate = useNavigate();
@@ -22,13 +23,33 @@ function AdminClinicRegister() {
     e.preventDefault();
     setLoading(true);
     try {
-      await clinicService.createClinic({
+      const clinicResult = await clinicService.createClinic({
         name: formData.name,
         rfc: formData.rfc,
         address: formData.address,
         contract_plan: formData.contract_plan,
+        status: 'Pago Pendiente'
       });
-      alert('¡Sede registrada exitosamente! El contrato ha sido guardado en la base de datos.');
+      
+      const newClinic = clinicResult[0];
+      
+      // Determine base price based on plan
+      let amount = 0;
+      if (formData.contract_plan === 'Individual') amount = 85;
+      if (formData.contract_plan === 'Clínica Pequeña') amount = 80000;
+      if (formData.contract_plan === 'Hospital Grande') amount = 120000;
+
+      // Create subscription record
+      if (newClinic) {
+        await subscriptionService.createSubscription({
+          clinic_id: newClinic.id,
+          plan: formData.contract_plan,
+          status: 'PAST_DUE', // Starts pending until payment is registered
+          amount: amount
+        });
+      }
+
+      alert('¡Sede registrada exitosamente! El contrato y la suscripción pendiente han sido generados.');
       navigate('/admin/clinics');
     } catch (err) {
       console.error(err);
