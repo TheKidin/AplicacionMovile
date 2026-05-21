@@ -184,7 +184,26 @@ function AdminClinics() {
                             Cambiar Suscripción
                           </button>
                           <div style={{ height: '1px', backgroundColor: '#E2E8F0', margin: '4px 0' }}></div>
-                          <button onClick={(e) => { e.stopPropagation(); setOpenMenuId(null); alert(`La Sede ${clinic.name} ha sido SUSPENDIDA (Corte de Servicio).`); }} style={{ width: '100%', padding: '10px 12px', textAlign: 'left', background: 'none', border: 'none', fontSize: '13px', fontWeight: '700', color: '#DC2626', cursor: 'pointer', borderRadius: '6px' }} onMouseOver={e => e.currentTarget.style.backgroundColor = '#FEE2E2'} onMouseOut={e => e.currentTarget.style.backgroundColor = 'transparent'}>
+                          <button onClick={async (e) => {
+                            e.stopPropagation();
+                            setOpenMenuId(null);
+                            if (window.confirm(`¿Estás seguro de suspender el servicio para ${clinic.name}?`)) {
+                              try {
+                                await clinicService.updateClinic(clinic.id, { status: 'Suspendido' });
+                                const subs = await subscriptionService.getSubscriptions();
+                                const clinicSub = (subs || []).find(s => s.clinic_id === clinic.id);
+                                if (clinicSub) {
+                                  await subscriptionService.updateSubscription(clinicSub.id, { status: 'CANCELLED' });
+                                }
+                                const updatedClinics = await clinicService.getClinics();
+                                setClinics(updatedClinics || []);
+                                alert(`La Sede ${clinic.name} ha sido SUSPENDIDA.`);
+                              } catch (err) {
+                                console.error('Error al suspender clínica:', err);
+                                alert('Error al suspender la clínica');
+                              }
+                            }
+                          }} style={{ width: '100%', padding: '10px 12px', textAlign: 'left', background: 'none', border: 'none', fontSize: '13px', fontWeight: '700', color: '#DC2626', cursor: 'pointer', borderRadius: '6px' }} onMouseOver={e => e.currentTarget.style.backgroundColor = '#FEE2E2'} onMouseOut={e => e.currentTarget.style.backgroundColor = 'transparent'}>
                             Suspender Servicio
                           </button>
                         </div>

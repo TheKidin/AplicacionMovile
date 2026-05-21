@@ -27,5 +27,21 @@ export const clinicService = {
       throw error;
     }
     return data;
+  },
+
+  // Actualizar una clínica existente
+  async updateClinic(id, updateData) {
+    const { data, error } = await supabase
+      .from('clinics')
+      .update(updateData)
+      .eq('id', id)
+      .select();
+      
+    if (error) {
+      console.error('Error updating clinic:', error);
+      throw error;
+    }
+    return data;
   }
 };
+

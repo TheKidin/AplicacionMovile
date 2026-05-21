@@ -23,4 +23,13 @@ export const subscriptionService = {
     if (error) throw error;
     return data;
   },
+  async updateSubscription(id, updateData) {
+    const { data, error } = await supabase
+      .from('subscriptions')
+      .update(updateData)
+      .eq('id', id)
+      .select();
+    if (error) throw error;
+    return data;
+  },
 };

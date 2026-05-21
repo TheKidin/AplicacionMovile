@@ -144,7 +144,21 @@ function AdminBilling() {
         paid_at: new Date().toISOString(),
       });
 
+      // Update subscription status to ACTIVE in Supabase
+      if (sub) {
+        await subscriptionService.updateSubscription(sub.id, { status: 'ACTIVE' });
+      }
+
+      // Update clinic status to 'Activo' in Supabase
+      await clinicService.updateClinic(selectedClinic.id, { status: 'Activo' });
+
       // Reload data
+      const clinicsData = await clinicService.getClinics();
+      setClinics(clinicsData || []);
+
+      const subs = await subscriptionService.getSubscriptions();
+      setSubscriptions(subs || []);
+
       const updatedPayments = await subscriptionService.getPayments();
       setPayments(updatedPayments || []);
 
