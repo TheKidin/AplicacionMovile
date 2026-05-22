@@ -85,3 +85,16 @@ CHECK (method IN ('SPEI', 'OXXO', 'CARD', 'OTHER'));
 SELECT column_name, data_type FROM information_schema.columns 
 WHERE table_name = 'clinics' ORDER BY ordinal_position;
 
+-- 11. Permitir lectura pública de clinics para que los médicos puedan registrarse antes de iniciar sesión
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies 
+        WHERE tablename = 'clinics' AND policyname = 'Permitir lectura publica de clinics'
+    ) THEN
+        CREATE POLICY "Permitir lectura publica de clinics" 
+        ON public.clinics FOR SELECT USING (true);
+    END IF;
+END
+$$;
+

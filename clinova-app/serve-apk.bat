@@ -2,6 +2,7 @@
 echo ============================================
 echo    CLINOVA - Descargar APK por WiFi
 echo ============================================
+set PATH=C:\Program Files\Microsoft Visual Studio\18\Community\MSBuild\Microsoft\VisualStudio\NodeJs;%PATH%
 echo.
 echo    Tu telefono y PC deben estar en la MISMA red WiFi
 echo.

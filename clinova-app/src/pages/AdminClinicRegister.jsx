@@ -14,6 +14,9 @@ function AdminClinicRegister() {
     contract_plan: '',
     // Nota: director, email y phone no están en la tabla clinics actual, pero podrían agregarse después
   });
+  const [isPaid, setIsPaid] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState('SPEI');
+  const [paymentReference, setPaymentReference] = useState('');
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -28,7 +31,7 @@ function AdminClinicRegister() {
         rfc: formData.rfc,
         address: formData.address,
         contract_plan: formData.contract_plan,
-        status: 'Pago Pendiente'
+        status: isPaid ? 'Activo' : 'Pago Pendiente'
       });
       
       const newClinic = clinicResult[0];
@@ -41,15 +44,33 @@ function AdminClinicRegister() {
 
       // Create subscription record
       if (newClinic) {
-        await subscriptionService.createSubscription({
+        const subResult = await subscriptionService.createSubscription({
           clinic_id: newClinic.id,
           plan: formData.contract_plan,
-          status: 'PAST_DUE', // Starts pending until payment is registered
+          status: isPaid ? 'ACTIVE' : 'PAST_DUE', // Starts pending unless payment is registered
           amount: amount
         });
+        
+        const newSub = subResult[0];
+
+        // Register payment automatically if already paid
+        if (isPaid) {
+          await subscriptionService.registerPayment({
+            clinic_id: newClinic.id,
+            subscription_id: newSub?.id || null,
+            amount: amount,
+            method: paymentMethod,
+            reference: paymentReference,
+            status: 'COMPLETED',
+            paid_at: new Date().toISOString(),
+          });
+        }
       }
 
-      alert('¡Sede registrada exitosamente! El contrato y la suscripción pendiente han sido generados.');
+      alert(isPaid 
+        ? '¡Sede registrada y activada exitosamente! Se ha registrado el pago y el contrato está activo.'
+        : '¡Sede registrada exitosamente! El contrato y la suscripción pendiente han sido generados.'
+      );
       navigate('/admin/clinics');
     } catch (err) {
       console.error(err);
@@ -151,13 +172,45 @@ function AdminClinicRegister() {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <label style={{ fontSize: '13px', fontWeight: '700', color: '#64748B' }}>Método de Pago Acordado</label>
-              <select required style={{ padding: '12px 16px', borderRadius: '10px', border: '1px solid #E2E8F0', fontSize: '14px', outline: 'none', backgroundColor: 'white', cursor: 'pointer' }}>
-                <option value="spei">Transferencia Bancaria (SPEI)</option>
-                <option value="oxxo">Depósito en OXXO</option>
-                <option value="tarjeta">Tarjeta de Crédito/Débito</option>
-                <option value="otro">Otro método acordado</option>
+              <select 
+                value={paymentMethod} 
+                onChange={e => setPaymentMethod(e.target.value)} 
+                required 
+                style={{ padding: '12px 16px', borderRadius: '10px', border: '1px solid #E2E8F0', fontSize: '14px', outline: 'none', backgroundColor: 'white', cursor: 'pointer' }}
+              >
+                <option value="SPEI">Transferencia Bancaria (SPEI)</option>
+                <option value="OXXO">Depósito en OXXO</option>
+                <option value="CARD">Tarjeta de Crédito/Débito (Stripe)</option>
+                <option value="OTHER">Otro método acordado</option>
               </select>
             </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '10px' }}>
+              <input 
+                type="checkbox" 
+                id="isPaid" 
+                checked={isPaid}
+                onChange={(e) => setIsPaid(e.target.checked)}
+                style={{ width: '20px', height: '20px', cursor: 'pointer' }} 
+              />
+              <label htmlFor="isPaid" style={{ fontSize: '14px', color: '#1E293B', fontWeight: '700', cursor: 'pointer' }}>
+                ¿El pago inicial ya fue realizado? (Activar sede inmediatamente)
+              </label>
+            </div>
+
+            {isPaid && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '10px' }}>
+                <label style={{ fontSize: '13px', fontWeight: '700', color: '#64748B' }}>Referencia de Pago (Stripe ID / Depósito)</label>
+                <input 
+                  type="text" 
+                  value={paymentReference} 
+                  onChange={e => setPaymentReference(e.target.value)} 
+                  placeholder="Ej. ch_3MxsK2Lkd... o Ref: 123456" 
+                  required={isPaid}
+                  style={{ padding: '12px 16px', borderRadius: '10px', border: '1px solid #E2E8F0', fontSize: '14px', outline: 'none' }} 
+                />
+              </div>
+            )}
           </div>
         </div>
 

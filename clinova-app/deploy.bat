@@ -4,8 +4,9 @@ echo    CLINOVA - Build y Deploy Movil
 echo ============================================
 echo.
 
-:: Configurar Java
+:: Configurar Java y Node.js
 set JAVA_HOME=D:\AndroidStudio\jbr
+set PATH=C:\Program Files\Microsoft Visual Studio\18\Community\MSBuild\Microsoft\VisualStudio\NodeJs;%PATH%
 
 :: Paso 1: Build web
 echo [1/4] Construyendo app web...
