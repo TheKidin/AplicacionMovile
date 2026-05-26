@@ -369,13 +369,14 @@ function AdminBilling() {
                 <input
                   type="number"
                   value={paymentForm.amount}
-                  onChange={e => setPaymentForm(prev => ({ ...prev, amount: e.target.value }))}
+                  readOnly
                   placeholder="0.00"
-                  style={{ width: '100%', padding: '12px 16px 12px 36px', borderRadius: '12px', border: '1px solid #E2E8F0', fontSize: '14px', color: '#1E293B', outline: 'none', transition: 'border-color 0.2s', boxSizing: 'border-box', fontWeight: '600' }}
-                  onFocus={e => e.target.style.borderColor = '#3B82F6'}
-                  onBlur={e => e.target.style.borderColor = '#E2E8F0'}
+                  style={{ width: '100%', padding: '12px 16px 12px 36px', borderRadius: '12px', border: '1px solid #E2E8F0', fontSize: '14px', color: '#1E293B', outline: 'none', boxSizing: 'border-box', fontWeight: '600', backgroundColor: '#F8FAFC', cursor: 'not-allowed' }}
                 />
               </div>
+              <p style={{ margin: '6px 0 0 0', fontSize: '11px', color: '#94A3B8', fontWeight: '500' }}>
+                🔒 El monto correspond al plan contratado y no puede modificarse. Para cambiar de plan, el contrato actual debe cancelarse.
+              </p>
             </div>
 
             <div style={{ marginBottom: '20px' }}>

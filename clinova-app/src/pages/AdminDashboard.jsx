@@ -8,6 +8,7 @@ function AdminDashboard() {
   const [stats, setStats] = useState({
     patients: 0,
     doctors: 0,
+    nurses: 0,
     appointmentsToday: 0,
     income: 0
   });
@@ -29,10 +30,12 @@ function AdminDashboard() {
         
         const doctors = await authService.getUsersByRole('DOCTOR');
         const appointments = await appointmentService.getTodayAppointments();
+        const nurseCount = await authService.getNurseCount();
         
         setStats({
           patients: uniquePatientsMap.size,
           doctors: (doctors || []).length,
+          nurses: nurseCount || 0,
           appointmentsToday: (appointments || []).length,
           income: (appointments || []).length // Citas del día en vez de ingreso ficticio
         });
@@ -76,6 +79,7 @@ function AdminDashboard() {
   const kpis = [
     { title: 'Pacientes Registrados', value: stats.patients.toString(), change: 'En Sistema', isPositive: true, icon: Users, color: '#3B82F6', bg: '#EFF6FF' },
     { title: 'Médicos Activos', value: stats.doctors.toString(), change: 'En Sistema', isPositive: true, icon: UserCog, color: '#8B5CF6', bg: '#F5F3FF' },
+    { title: 'Enfermeras Activas', value: stats.nurses.toString(), change: 'En Sistema', isPositive: true, icon: UserCheck, color: '#EC4899', bg: '#FDF2F8' },
     { title: 'Solicitudes Pendientes', value: pendingStaff.length.toString(), change: pendingStaff.length > 0 ? 'Requiere atención' : 'Sin pendientes', isPositive: pendingStaff.length === 0, icon: Clock, color: '#F59E0B', bg: '#FFFBEB' },
     { title: 'Citas del Día', value: stats.income.toString(), change: 'Hoy', isPositive: true, icon: TrendingUp, color: '#10B981', bg: '#ECFDF5' },
   ];
