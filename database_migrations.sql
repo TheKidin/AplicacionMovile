@@ -81,11 +81,16 @@ ALTER TABLE public.payments DROP CONSTRAINT IF EXISTS payments_method_check;
 ALTER TABLE public.payments ADD CONSTRAINT payments_method_check 
 CHECK (method IN ('SPEI', 'OXXO', 'CARD', 'OTHER'));
 
--- 10. Verificar que todo esté correcto
+-- 10. Agregar columna de disponibilidad para doctores (disponible / descanso / ausente)
+ALTER TABLE public.profiles
+ADD COLUMN IF NOT EXISTS availability_status TEXT DEFAULT 'disponible'
+CHECK (availability_status IN ('disponible', 'descanso', 'ausente'));
+
+-- 11. Verificar que todo esté correcto
 SELECT column_name, data_type FROM information_schema.columns 
 WHERE table_name = 'clinics' ORDER BY ordinal_position;
 
--- 11. Permitir lectura pública de clinics para que los médicos puedan registrarse antes de iniciar sesión
+-- 12. Permitir lectura pública de clinics para que los médicos puedan registrarse antes de iniciar sesión
 DO $$
 BEGIN
     IF NOT EXISTS (

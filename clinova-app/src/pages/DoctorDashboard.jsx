@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, Clock, Calendar, CheckCircle, AlertCircle, FileText, ChevronRight } from 'lucide-react';
+import { Bell, Clock, Calendar, FileText, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { appointmentService } from '../services/appointmentService';
 import { notificationService } from '../services/notificationService';
 import { authService } from '../services/authService';
 import SkeletonLoader from '../components/ui/SkeletonLoader';
+import { toast } from 'react-hot-toast';
 
 function DoctorDashboard() {
   const navigate = useNavigate();
@@ -32,6 +33,10 @@ function DoctorDashboard() {
           if (profile) {
             setDoctorName(`Dr. ${profile.first_name} ${profile.last_name || ''}`.trim());
             setDoctorSpecialty(profile.specialty || 'Medicina General');
+            // Cargar estado de disponibilidad guardado en la BD
+            if (profile.availability_status) {
+              setStatus(profile.availability_status);
+            }
           }
         } catch (e) {
           console.error("Error loading profile", e);
@@ -99,6 +104,19 @@ function DoctorDashboard() {
     }
   };
 
+  const handleStatusChange = async (newStatus) => {
+    setStatus(newStatus);
+    if (!currentUser) return;
+    try {
+      await authService.updateDoctorAvailability(currentUser.id, newStatus);
+      const labels = { disponible: '🟢 Disponible', descanso: '🟡 En descanso', ausente: '🔴 Ausente' };
+      toast.success(`Estado actualizado: ${labels[newStatus]}`);
+    } catch (error) {
+      console.error('Error actualizando disponibilidad:', error);
+      toast.error('No se pudo actualizar el estado.');
+    }
+  };
+
   return (
     <div style={{ padding: '32px 24px', minHeight: '100%', display: 'flex', flexDirection: 'column', backgroundColor: '#F7F9FC' }}>
       
@@ -151,25 +169,28 @@ function DoctorDashboard() {
       </div>
 
       {/* Status Selector */}
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '32px' }}>
-        <button 
-          onClick={() => setStatus('disponible')}
-          style={{ flex: 1, padding: '10px 0', borderRadius: '12px', fontSize: '12px', fontWeight: '800', border: status === 'disponible' ? '2px solid #10B981' : '2px solid transparent', cursor: 'pointer', backgroundColor: status === 'disponible' ? '#DCFCE7' : '#FFFFFF', color: status === 'disponible' ? '#065F46' : '#6B7280', transition: 'all 0.2s' }}
-        >
-          Disponible
-        </button>
-        <button 
-          onClick={() => setStatus('descanso')}
-          style={{ flex: 1, padding: '10px 0', borderRadius: '12px', fontSize: '12px', fontWeight: '800', border: status === 'descanso' ? '2px solid #F59E0B' : '2px solid transparent', cursor: 'pointer', backgroundColor: status === 'descanso' ? '#FEF3C7' : '#FFFFFF', color: status === 'descanso' ? '#92400E' : '#6B7280', transition: 'all 0.2s' }}
-        >
-          En Descanso
-        </button>
-        <button 
-          onClick={() => setStatus('ausente')}
-          style={{ flex: 1, padding: '10px 0', borderRadius: '12px', fontSize: '12px', fontWeight: '800', border: status === 'ausente' ? '2px solid #EF4444' : '2px solid transparent', cursor: 'pointer', backgroundColor: status === 'ausente' ? '#FEE2E2' : '#FFFFFF', color: status === 'ausente' ? '#991B1B' : '#6B7280', transition: 'all 0.2s' }}
-        >
-          Ausente
-        </button>
+      <div style={{ marginBottom: '32px' }}>
+        <p style={{ fontSize: '11px', fontWeight: '800', color: '#9CA3AF', marginBottom: '8px', letterSpacing: '0.5px' }}>MI DISPONIBILIDAD</p>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button 
+            onClick={() => handleStatusChange('disponible')}
+            style={{ flex: 1, padding: '10px 0', borderRadius: '12px', fontSize: '12px', fontWeight: '800', border: status === 'disponible' ? '2px solid #10B981' : '2px solid transparent', cursor: 'pointer', backgroundColor: status === 'disponible' ? '#DCFCE7' : '#FFFFFF', color: status === 'disponible' ? '#065F46' : '#6B7280', transition: 'all 0.2s' }}
+          >
+            🟢 Disponible
+          </button>
+          <button 
+            onClick={() => handleStatusChange('descanso')}
+            style={{ flex: 1, padding: '10px 0', borderRadius: '12px', fontSize: '12px', fontWeight: '800', border: status === 'descanso' ? '2px solid #F59E0B' : '2px solid transparent', cursor: 'pointer', backgroundColor: status === 'descanso' ? '#FEF3C7' : '#FFFFFF', color: status === 'descanso' ? '#92400E' : '#6B7280', transition: 'all 0.2s' }}
+          >
+            🟡 Descanso
+          </button>
+          <button 
+            onClick={() => handleStatusChange('ausente')}
+            style={{ flex: 1, padding: '10px 0', borderRadius: '12px', fontSize: '12px', fontWeight: '800', border: status === 'ausente' ? '2px solid #EF4444' : '2px solid transparent', cursor: 'pointer', backgroundColor: status === 'ausente' ? '#FEE2E2' : '#FFFFFF', color: status === 'ausente' ? '#991B1B' : '#6B7280', transition: 'all 0.2s' }}
+          >
+            🔴 Ausente
+          </button>
+        </div>
       </div>
 
       {/* Stats / Overview */}

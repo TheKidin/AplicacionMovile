@@ -163,4 +163,43 @@ export const authService = {
     if (error) throw error;
     return data;
   },
+
+  // Actualizar disponibilidad del doctor (disponible / descanso / ausente)
+  async updateDoctorAvailability(userId, availabilityStatus) {
+    const { data, error } = await supabase
+      .from('profiles')
+      .update({ availability_status: availabilityStatus })
+      .eq('id', userId)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  },
+
+  // Obtener todos los doctores con su disponibilidad actual
+  async getDoctorsWithAvailability() {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id, first_name, last_name, email, specialty, availability_status, status')
+      .eq('role', 'DOCTOR')
+      .eq('status', 'ACTIVE');
+    if (error) throw error;
+    return data || [];
+  },
+
+  // Suscripción en tiempo real a cambios de disponibilidad de doctores
+  subscribeToDoctorAvailability(callback) {
+    return supabase
+      .channel('doctor-availability')
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'profiles' },
+        (payload) => {
+          if (payload.new?.role === 'DOCTOR') {
+            callback(payload.new);
+          }
+        }
+      )
+      .subscribe();
+  },
 };

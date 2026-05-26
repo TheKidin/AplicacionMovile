@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { appointmentService } from '../services/appointmentService';
 import { notificationService } from '../services/notificationService';
+import { authService } from '../services/authService';
 import SkeletonLoader from '../components/ui/SkeletonLoader';
 
 function ReceptionDashboard() {
@@ -13,13 +14,34 @@ function ReceptionDashboard() {
   const [notifications, setNotifications] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [doctors, setDoctors] = useState([]);
+  const [nurseName, setNurseName] = useState('Cargando...');
+  const [nurseAvatar, setNurseAvatar] = useState(null);
+
   React.useEffect(() => {
     const fetchDashboardData = async () => {
       try {
         const appts = await appointmentService.getTodayAppointments();
         setAppointments(appts || []);
 
+        // Cargar disponibilidad de doctores
+        const docs = await authService.getDoctorsWithAvailability();
+        setDoctors(docs || []);
+
         if (currentUser) {
+          // Cargar avatar y nombre de la enfermera
+          const savedAvatar = authService.getAvatarLocal(currentUser.id);
+          setNurseAvatar(savedAvatar);
+
+          try {
+            const profile = await authService.getProfile(currentUser.id);
+            if (profile) {
+              setNurseName(`${profile.first_name || ''} ${profile.last_name || ''}`.trim());
+            }
+          } catch {
+            setNurseName(currentUser.email || 'Personal');
+          }
+
           const notifs = await notificationService.getNotifications(currentUser.id);
           setNotifications(notifs || []);
         }
@@ -31,6 +53,11 @@ function ReceptionDashboard() {
     };
     fetchDashboardData();
 
+    // Suscripción a disponibilidad de doctores en tiempo real
+    const doctorChannel = authService.subscribeToDoctorAvailability((updatedDoc) => {
+      setDoctors(prev => prev.map(d => d.id === updatedDoc.id ? { ...d, availability_status: updatedDoc.availability_status } : d));
+    });
+
     let channel;
     if (currentUser) {
       channel = notificationService.subscribeToNotifications(currentUser.id, (newNotification) => {
@@ -40,6 +67,7 @@ function ReceptionDashboard() {
 
     return () => {
       if (channel) channel.unsubscribe();
+      if (doctorChannel) doctorChannel.unsubscribe();
     };
   }, [currentUser]);
 
@@ -57,7 +85,7 @@ function ReceptionDashboard() {
   const todayStats = {
     scheduled: appointments.filter(a => a.status === 'SCHEDULED').length,
     waiting: appointments.filter(a => a.status === 'WAITING').length,
-    doctorsAvailable: 1,
+    doctorsAvailable: doctors.filter(d => (d.availability_status || 'disponible') === 'disponible').length,
     urgencias: 0,
     pacientes: appointments.length,
     consultas: appointments.filter(a => a.status === 'IN_PROGRESS' || a.status === 'COMPLETED').length
@@ -99,11 +127,17 @@ function ReceptionDashboard() {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{ width: '48px', height: '48px', borderRadius: '50%', backgroundColor: '#E0E7FF', overflow: 'hidden' }}>
-            <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Nurse" alt="avatar" style={{ width: '100%' }} />
+          <div style={{ width: '48px', height: '48px', borderRadius: '50%', backgroundColor: '#E0E7FF', overflow: 'hidden', border: '2px solid #C7D2FE', flexShrink: 0 }}>
+            <img
+              src={nurseAvatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${nurseName || 'Nurse'}`}
+              alt="avatar"
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            />
           </div>
           <div>
-            <h1 style={{ fontSize: '18px', fontWeight: '800', color: '#1B2C66' }}>{currentUser ? `${currentUser.first_name || ''} ${currentUser.last_name || ''}` : 'Personal'}</h1>
+            <h1 style={{ fontSize: '18px', fontWeight: '800', color: '#1B2C66' }}>
+              {nurseName || (currentUser ? `${currentUser.first_name || ''} ${currentUser.last_name || ''}` : 'Personal')}
+            </h1>
             <p style={{ fontSize: '12px', color: '#6B7280', fontWeight: '600' }}>Recepción • Sede Principal</p>
           </div>
         </div>
