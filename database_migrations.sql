@@ -103,3 +103,9 @@ BEGIN
 END
 $$;
 
+-- 13. Agregar columnas de fechas a subscriptions para gestión de vencimiento y cancelación
+ALTER TABLE public.subscriptions
+ADD COLUMN IF NOT EXISTS start_date TIMESTAMP WITH TIME ZONE,
+ADD COLUMN IF NOT EXISTS end_date TIMESTAMP WITH TIME ZONE,
+ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMP WITH TIME ZONE;
+

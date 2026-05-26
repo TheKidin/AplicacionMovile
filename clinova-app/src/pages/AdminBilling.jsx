@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { CreditCard, Building2, DollarSign, CheckCircle, Clock, AlertCircle, X, Wrench } from 'lucide-react';
+import { CreditCard, Building2, DollarSign, CheckCircle, Clock, AlertCircle, X, Wrench, Ban, Calendar } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { clinicService } from '../services/clinicService';
 import { subscriptionService } from '../services/subscriptionService';
@@ -10,6 +10,9 @@ function AdminBilling() {
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelTarget, setCancelTarget] = useState(null); // { clinic, sub }
+  const [cancelling, setCancelling] = useState(false);
   const [selectedClinic, setSelectedClinic] = useState(null);
   const [paymentForm, setPaymentForm] = useState({
     amount: '',
@@ -122,6 +125,47 @@ function AdminBilling() {
       reference: ''
     });
     setShowModal(true);
+  };
+
+  const handleOpenCancelModal = (clinic) => {
+    const sub = getClinicSubscription(clinic.id);
+    if (!sub) { toast.error('Esta clínica no tiene suscripción activa'); return; }
+    setCancelTarget({ clinic, sub });
+    setShowCancelModal(true);
+  };
+
+  const handleConfirmCancel = async () => {
+    if (!cancelTarget?.sub?.id) return;
+    setCancelling(true);
+    try {
+      await subscriptionService.cancelSubscription(cancelTarget.sub.id);
+      const updatedSubs = await subscriptionService.getSubscriptions();
+      setSubscriptions(updatedSubs || []);
+      toast.success(`Contrato de ${cancelTarget.clinic.name} cancelado exitosamente`);
+      setShowCancelModal(false);
+      setCancelTarget(null);
+    } catch (error) {
+      console.error('Error cancelling subscription:', error);
+      toast.error('Error al cancelar el contrato: ' + (error.message || 'Intenta de nuevo'));
+    } finally {
+      setCancelling(false);
+    }
+  };
+
+  const formatDate = (dateStr) => {
+    if (!dateStr) return null;
+    return new Date(dateStr).toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' });
+  };
+
+  const getExpiryDate = (sub) => {
+    if (sub?.end_date) return formatDate(sub.end_date);
+    if (sub?.created_at) {
+      // Si no hay end_date, estimar 1 año desde creación
+      const d = new Date(sub.created_at);
+      d.setFullYear(d.getFullYear() + 1);
+      return formatDate(d.toISOString());
+    }
+    return null;
   };
 
   const handleRegisterPayment = async () => {
@@ -251,6 +295,7 @@ function AdminBilling() {
                 <th style={{ padding: '16px 8px', fontWeight: '700' }}>Clínica</th>
                 <th style={{ padding: '16px 8px', fontWeight: '700' }}>Plan</th>
                 <th style={{ padding: '16px 8px', fontWeight: '700' }}>Estado</th>
+                <th style={{ padding: '16px 8px', fontWeight: '700' }}>Vencimiento</th>
                 <th style={{ padding: '16px 8px', fontWeight: '700' }}>Último Pago</th>
                 <th style={{ padding: '16px 8px', fontWeight: '700' }}>Monto</th>
                 <th style={{ padding: '16px 8px', fontWeight: '700' }}>Acciones</th>
@@ -312,6 +357,18 @@ function AdminBilling() {
                           </span>
                         </div>
                       </td>
+                      <td style={{ padding: '16px 8px' }}>
+                        {sub ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <Calendar size={13} color={statusKey === 'CANCELLED' ? '#DC2626' : '#64748B'} />
+                            <span style={{ fontSize: '13px', color: statusKey === 'CANCELLED' ? '#DC2626' : '#475569', fontWeight: '600' }}>
+                              {getExpiryDate(sub)}
+                            </span>
+                          </div>
+                        ) : (
+                          <span style={{ color: '#CBD5E1', fontStyle: 'italic', fontSize: '13px' }}>—</span>
+                        )}
+                      </td>
                       <td style={{ padding: '16px 8px', fontSize: '14px', color: '#475569' }}>
                         {lastPayment?.paid_at ? new Date(lastPayment.paid_at).toLocaleDateString('es-MX') : <span style={{ color: '#CBD5E1', fontStyle: 'italic' }}>Sin pagos</span>}
                       </td>
@@ -319,15 +376,28 @@ function AdminBilling() {
                         {lastPayment ? `$${lastPayment.amount?.toLocaleString()}` : '$0'}
                       </td>
                       <td style={{ padding: '16px 8px' }}>
-                        <button
-                          onClick={() => handleOpenModal(clinic)}
-                          style={{ padding: '8px 16px', borderRadius: '10px', border: 'none', background: 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)', color: 'white', fontSize: '13px', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', transition: 'all 0.2s', boxShadow: '0 2px 8px rgba(59,130,246,0.3)', whiteSpace: 'nowrap' }}
-                          onMouseOver={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(59,130,246,0.4)'; }}
-                          onMouseOut={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 2px 8px rgba(59,130,246,0.3)'; }}
-                        >
-                          <CreditCard size={14} />
-                          Registrar Pago
-                        </button>
+                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                          <button
+                            onClick={() => handleOpenModal(clinic)}
+                            style={{ padding: '8px 14px', borderRadius: '10px', border: 'none', background: 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)', color: 'white', fontSize: '12px', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px', transition: 'all 0.2s', boxShadow: '0 2px 8px rgba(59,130,246,0.3)', whiteSpace: 'nowrap' }}
+                            onMouseOver={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(59,130,246,0.4)'; }}
+                            onMouseOut={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 2px 8px rgba(59,130,246,0.3)'; }}
+                          >
+                            <CreditCard size={13} />
+                            Registrar Pago
+                          </button>
+                          {sub && statusKey !== 'CANCELLED' && (
+                            <button
+                              onClick={() => handleOpenCancelModal(clinic)}
+                              style={{ padding: '8px 14px', borderRadius: '10px', border: '1px solid #FCA5A5', backgroundColor: '#FEF2F2', color: '#DC2626', fontSize: '12px', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px', transition: 'all 0.2s', whiteSpace: 'nowrap' }}
+                              onMouseOver={e => e.currentTarget.style.backgroundColor = '#FEE2E2'}
+                              onMouseOut={e => e.currentTarget.style.backgroundColor = '#FEF2F2'}
+                            >
+                              <Ban size={13} />
+                              Cancelar Contrato
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -417,6 +487,80 @@ function AdminBilling() {
               <CheckCircle size={18} />
               Confirmar Pago
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Cancel Contract Confirmation Modal */}
+      {showCancelModal && cancelTarget && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1001, padding: '20px' }} onClick={() => setShowCancelModal(false)}>
+          <div style={{ backgroundColor: 'white', borderRadius: '20px', padding: '32px', width: '100%', maxWidth: '460px', boxShadow: '0 24px 48px rgba(0,0,0,0.15)', position: 'relative', animation: 'modalIn 0.3s ease' }} onClick={e => e.stopPropagation()}>
+
+            {/* Header danger */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', marginBottom: '24px' }}>
+              <div style={{ width: '64px', height: '64px', borderRadius: '50%', backgroundColor: '#FEF2F2', border: '3px solid #FCA5A5', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
+                <Ban size={28} color="#DC2626" />
+              </div>
+              <h3 style={{ fontSize: '20px', fontWeight: '800', color: '#1E293B', margin: '0 0 6px 0' }}>Cancelar Contrato</h3>
+              <p style={{ fontSize: '14px', color: '#64748B', margin: 0 }}>Esta acción no se puede deshacer</p>
+            </div>
+
+            {/* Clinic info */}
+            <div style={{ backgroundColor: '#F8FAFC', borderRadius: '12px', padding: '16px', marginBottom: '16px', border: '1px solid #E2E8F0' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
+                <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'linear-gradient(135deg, #3B82F6 0%, #8B5CF6 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Building2 size={16} color="white" />
+                </div>
+                <div>
+                  <p style={{ margin: 0, fontSize: '14px', fontWeight: '800', color: '#1E293B' }}>{cancelTarget.clinic.name}</p>
+                  <p style={{ margin: 0, fontSize: '12px', color: '#64748B' }}>Plan: {cancelTarget.sub.plan || 'Sin plan'}</p>
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <div style={{ flex: 1, backgroundColor: 'white', borderRadius: '10px', padding: '12px', border: '1px solid #E2E8F0' }}>
+                  <p style={{ margin: '0 0 4px 0', fontSize: '11px', color: '#94A3B8', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Monto del Plan</p>
+                  <p style={{ margin: 0, fontSize: '16px', fontWeight: '800', color: '#1E293B' }}>${cancelTarget.sub.amount?.toLocaleString() || '0'} MXN</p>
+                </div>
+                <div style={{ flex: 1, backgroundColor: 'white', borderRadius: '10px', padding: '12px', border: '1px solid #E2E8F0' }}>
+                  <p style={{ margin: '0 0 4px 0', fontSize: '11px', color: '#94A3B8', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <Calendar size={10} />Vencimiento
+                  </p>
+                  <p style={{ margin: 0, fontSize: '13px', fontWeight: '700', color: '#475569' }}>{getExpiryDate(cancelTarget.sub)}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Warning */}
+            <div style={{ backgroundColor: '#FEF2F2', borderRadius: '12px', padding: '14px 16px', marginBottom: '24px', border: '1px solid #FCA5A5', display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
+              <AlertCircle size={18} color="#DC2626" style={{ flexShrink: 0, marginTop: '1px' }} />
+              <p style={{ margin: 0, fontSize: '13px', color: '#991B1B', fontWeight: '600', lineHeight: '1.5' }}>
+                Al cancelar, el acceso del cliente a la plataforma quedará suspendido. Si desean continuar, deberán contratar un nuevo plan.
+              </p>
+            </div>
+
+            {/* Buttons */}
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button
+                onClick={() => setShowCancelModal(false)}
+                disabled={cancelling}
+                style={{ flex: 1, padding: '13px', borderRadius: '12px', border: '1px solid #E2E8F0', backgroundColor: '#F8FAFC', color: '#475569', fontSize: '14px', fontWeight: '700', cursor: 'pointer', transition: 'all 0.2s' }}
+                onMouseOver={e => e.currentTarget.style.backgroundColor = '#F1F5F9'}
+                onMouseOut={e => e.currentTarget.style.backgroundColor = '#F8FAFC'}
+              >
+                No, Mantener
+              </button>
+              <button
+                onClick={handleConfirmCancel}
+                disabled={cancelling}
+                style={{ flex: 1, padding: '13px', borderRadius: '12px', border: 'none', background: cancelling ? '#F1F5F9' : 'linear-gradient(135deg, #EF4444 0%, #DC2626 100%)', color: cancelling ? '#94A3B8' : 'white', fontSize: '14px', fontWeight: '700', cursor: cancelling ? 'not-allowed' : 'pointer', transition: 'all 0.2s', boxShadow: cancelling ? 'none' : '0 4px 12px rgba(239,68,68,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+              >
+                {cancelling ? (
+                  <><div style={{ width: '16px', height: '16px', border: '2px solid #CBD5E1', borderTopColor: '#64748B', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} /> Cancelando...</>
+                ) : (
+                  <><Ban size={16} /> Sí, Cancelar Contrato</>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}

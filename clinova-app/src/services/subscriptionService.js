@@ -32,4 +32,13 @@ export const subscriptionService = {
     if (error) throw error;
     return data;
   },
+  async cancelSubscription(id) {
+    const { data, error } = await supabase
+      .from('subscriptions')
+      .update({ status: 'CANCELLED', cancelled_at: new Date().toISOString() })
+      .eq('id', id)
+      .select();
+    if (error) throw error;
+    return data;
+  },
 };
