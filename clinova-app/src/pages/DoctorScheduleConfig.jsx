@@ -1,9 +1,16 @@
-import React, { useState } from 'react';
-import { ArrowLeft, Clock, Calendar, CheckCircle2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ArrowLeft, Clock, Calendar, CheckCircle2, Loader } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import { authService } from '../services/authService';
+import { toast } from 'react-hot-toast';
 
 function DoctorScheduleConfig() {
   const navigate = useNavigate();
+  const { currentUser } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
   const [days, setDays] = useState({
     monday: true,
     tuesday: true,
@@ -14,13 +21,70 @@ function DoctorScheduleConfig() {
     sunday: false
   });
 
+  const [startTime, setStartTime] = useState('08:00');
+  const [endTime, setEndTime] = useState('16:00');
+
+  // Cargar horario existente del perfil del doctor
+  useEffect(() => {
+    const loadSchedule = async () => {
+      try {
+        if (currentUser) {
+          const profile = await authService.getProfile(currentUser.id);
+          if (profile) {
+            if (profile.schedule_start) setStartTime(profile.schedule_start);
+            if (profile.schedule_end) setEndTime(profile.schedule_end);
+            if (profile.schedule_days) {
+              try {
+                const savedDays = typeof profile.schedule_days === 'string' 
+                  ? JSON.parse(profile.schedule_days) 
+                  : profile.schedule_days;
+                setDays(prev => ({ ...prev, ...savedDays }));
+              } catch {
+                // Usar valores por defecto si no se puede parsear
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error al cargar horario:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadSchedule();
+  }, [currentUser]);
+
   const toggleDay = (day) => {
     setDays({ ...days, [day]: !days[day] });
   };
 
-  const handleSave = () => {
-    alert('Horarios actualizados correctamente.');
-    navigate(-1);
+  const handleSave = async () => {
+    if (!currentUser) {
+      toast.error('No se encontró usuario autenticado.');
+      return;
+    }
+
+    // Validar que la hora de fin sea mayor que la de inicio
+    if (endTime <= startTime) {
+      toast.error('La hora de fin debe ser mayor que la hora de inicio.');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await authService.updateProfile(currentUser.id, {
+        schedule_start: startTime,
+        schedule_end: endTime,
+        schedule_days: JSON.stringify(days)
+      });
+      toast.success('¡Horarios actualizados correctamente!');
+      navigate(-1);
+    } catch (error) {
+      console.error('Error al guardar horarios:', error);
+      toast.error('Error al guardar los horarios. Verifica que los campos existan en la base de datos.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const dayNames = [
@@ -32,6 +96,14 @@ function DoctorScheduleConfig() {
     { key: 'saturday', label: 'Sábado' },
     { key: 'sunday', label: 'Domingo' },
   ];
+
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
+        <Loader size={32} className="spinner" color="var(--primary)" />
+      </div>
+    );
+  }
 
   return (
     <div style={{ padding: '32px 24px', minHeight: '100vh', backgroundColor: '#F7F9FC', paddingBottom: '100px' }}>
@@ -72,17 +144,30 @@ function DoctorScheduleConfig() {
         <div style={{ display: 'flex', gap: '16px' }}>
           <div style={{ flex: 1 }}>
             <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: '#6B7280', marginBottom: '8px' }}>DESDE</label>
-            <input type="time" defaultValue="08:00" style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #E5E7EB', outline: 'none', fontSize: '14px', fontWeight: '600' }} />
+            <input 
+              type="time" 
+              value={startTime} 
+              onChange={(e) => setStartTime(e.target.value)}
+              style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #E5E7EB', outline: 'none', fontSize: '14px', fontWeight: '600' }} 
+            />
           </div>
           <div style={{ flex: 1 }}>
             <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: '#6B7280', marginBottom: '8px' }}>HASTA</label>
-            <input type="time" defaultValue="16:00" style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #E5E7EB', outline: 'none', fontSize: '14px', fontWeight: '600' }} />
+            <input 
+              type="time" 
+              value={endTime} 
+              onChange={(e) => setEndTime(e.target.value)}
+              style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #E5E7EB', outline: 'none', fontSize: '14px', fontWeight: '600' }} 
+            />
           </div>
         </div>
+        <p style={{ fontSize: '12px', color: '#6B7280', marginTop: '12px', fontStyle: 'italic' }}>
+          Horario actual: {startTime} - {endTime}
+        </p>
       </div>
 
-      <button onClick={handleSave} className="btn-primary" style={{ width: '100%' }}>
-        GUARDAR HORARIOS
+      <button onClick={handleSave} disabled={saving} className="btn-primary" style={{ width: '100%', opacity: saving ? 0.7 : 1 }}>
+        {saving ? 'GUARDANDO...' : 'GUARDAR HORARIOS'}
       </button>
     </div>
   );

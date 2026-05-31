@@ -193,10 +193,64 @@ function Schedule() {
     return `${hours.toString().padStart(2, '0')}:${parts[1]}:00`;
   };
 
-  const baseTimeSlots = [
-    '09:00 AM', '09:30 AM', '10:00 AM', '11:00 AM',
-    '11:30 AM', '02:00 PM', '03:15 PM', '04:00 PM',
-  ];
+  // Generar slots dinámicamente basados en el horario del doctor
+  const generateTimeSlots = (doctorProfile) => {
+    const slots = [];
+    // Usar horario del doctor si existe, sino defaults
+    const startStr = doctorProfile?.schedule_start || '09:00';
+    const endStr = doctorProfile?.schedule_end || '16:00';
+
+    const [startH, startM] = startStr.split(':').map(Number);
+    const [endH, endM] = endStr.split(':').map(Number);
+
+    let currentH = startH;
+    let currentM = startM;
+
+    while (currentH < endH || (currentH === endH && currentM < endM)) {
+      // Saltar hora de comida (13:00 - 14:00)
+      if (currentH === 13) {
+        currentH = 14;
+        currentM = 0;
+        continue;
+      }
+
+      const ampm = currentH >= 12 ? 'PM' : 'AM';
+      const h12 = currentH % 12 || 12;
+      const timeStr = `${h12.toString().padStart(2, '0')}:${currentM.toString().padStart(2, '0')} ${ampm}`;
+      slots.push(timeStr);
+
+      // Avanzar 30 minutos
+      currentM += 30;
+      if (currentM >= 60) {
+        currentH += 1;
+        currentM = 0;
+      }
+    }
+
+    return slots;
+  };
+
+  const [doctorSchedule, setDoctorSchedule] = useState(null);
+
+  // Cargar horario del doctor cuando se selecciona uno
+  useEffect(() => {
+    const fetchDoctorSchedule = async () => {
+      if (!doctor?.id) {
+        setDoctorSchedule(null);
+        return;
+      }
+      try {
+        const profile = await authService.getProfile(doctor.id);
+        setDoctorSchedule(profile);
+      } catch (e) {
+        console.error('Error fetching doctor schedule:', e);
+        setDoctorSchedule(null);
+      }
+    };
+    fetchDoctorSchedule();
+  }, [doctor?.id]);
+
+  const baseTimeSlots = generateTimeSlots(doctorSchedule);
 
   const timeSlots = baseTimeSlots.map(time => {
     const dbTime = displayToDbTime(time);

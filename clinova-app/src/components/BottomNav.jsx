@@ -7,10 +7,10 @@ function BottomNav() {
   const location = useLocation();
 
   const navItems = [
-    { path: '/home', icon: Home, label: 'HOME' },
-    { path: '/records', icon: FolderOpen, label: 'RECORDS' },
-    { path: '/vitals', icon: Activity, label: 'VITALS' },
-    { path: '/settings', icon: Settings, label: 'SETTINGS' }
+    { path: '/home', icon: Home, label: 'INICIO' },
+    { path: '/records', icon: FolderOpen, label: 'HISTORIAL' },
+    { path: '/vitals', icon: Activity, label: 'SIGNOS' },
+    { path: '/settings', icon: Settings, label: 'AJUSTES' }
   ];
 
   return (

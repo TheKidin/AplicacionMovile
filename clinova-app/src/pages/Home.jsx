@@ -133,11 +133,12 @@ function Home() {
         </div>
       ) : (
         appointments.slice(0, 2).map((appt, idx) => {
-          // Parse date and time from DB
-          const dateObj = new Date(appt.date);
+          // Parse date parts directly from ISO string to avoid timezone issues
+          const dateParts = appt.date.split('-');
+          const dayNum = parseInt(dateParts[2], 10);
+          const monthIndex = parseInt(dateParts[1], 10) - 1;
           const monthNames = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
-          const dayNum = dateObj.getDate() + 1; // Basic timezone correction for display
-          const monthStr = monthNames[dateObj.getMonth()];
+          const monthStr = monthNames[monthIndex];
           
           let parsedNotes = {};
           try { 
@@ -163,7 +164,7 @@ function Home() {
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                    <span style={{ backgroundColor: '#30E3C2', color: '#064E3B', fontSize: '10px', fontWeight: '700', padding: '4px 8px', borderRadius: '4px' }}>{appt.status}</span>
+                    <span style={{ backgroundColor: '#30E3C2', color: '#064E3B', fontSize: '10px', fontWeight: '700', padding: '4px 8px', borderRadius: '4px' }}>{{ SCHEDULED: 'PROGRAMADA', WAITING: 'EN ESPERA', IN_PROGRESS: 'EN CURSO', COMPLETED: 'COMPLETADA', CANCELLED: 'CANCELADA' }[appt.status] || appt.status}</span>
                     <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: '#4B5563', fontWeight: '500' }}>
                       <Clock size={12} /> {displayTime}
                     </span>
@@ -190,7 +191,7 @@ function Home() {
                   </button>
                 ) : (
                   <>
-                    <button onClick={() => navigate('/pre-checkin')} className="btn-primary" style={{ flex: 1, padding: '12px', fontSize: '14px' }}>PRE-CHECKIN</button>
+                    <button onClick={() => navigate('/pre-checkin')} className="btn-primary" style={{ flex: 1, padding: '12px', fontSize: '14px' }}>PRE-REGISTRO</button>
                     <button onClick={() => navigate('/appointment-map', { state: { clinic: parsedNotes.clinicContent } })} style={{ backgroundColor: '#F3F4F6', border: 'none', borderRadius: '50%', width: '48px', height: '48px', display: 'flex', justifyContent: 'center', alignItems: 'center', cursor: 'pointer', flexShrink: 0 }}>
                       <Map size={20} color="#1B2C66" />
                     </button>
