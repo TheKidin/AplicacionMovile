@@ -71,6 +71,7 @@ function Schedule() {
   const { currentUser } = useAuth();
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [bookedSlots, setBookedSlots] = useState([]);
 
   const [modality, setModality] = useState(null); 
   const [clinic, setClinic] = useState(null);
@@ -95,6 +96,24 @@ function Schedule() {
     };
     fetchData();
   }, []);
+
+  // Fetch booked slots cuando cambian doctor y/o fecha
+  useEffect(() => {
+    const fetchBookedSlots = async () => {
+      if (!doctor?.id || !selectedDate?.fulldate) {
+        setBookedSlots([]);
+        return;
+      }
+      try {
+        const slots = await appointmentService.getBookedSlots(doctor.id, selectedDate.fulldate);
+        setBookedSlots(slots);
+      } catch (e) {
+        console.error('Error fetching booked slots:', e);
+        setBookedSlots([]);
+      }
+    };
+    fetchBookedSlots();
+  }, [doctor?.id, selectedDate?.fulldate]);
 
   const [triage, setTriage] = useState({
     motivo: '',
@@ -129,19 +148,22 @@ function Schedule() {
       const specSlug = d.specialty?.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
       return specSlug === specialty;
     })
-    .map(doc => ({
-      id: doc.id,
-      name: `Dr. ${doc.first_name} ${doc.last_name}`,
-      specialty: doc.specialty || 'Médico General',
-      cedula: doc.license_number || 'En trámite',
-      clinic: 'CLINOVA Central',
-      duration: '30 min',
-      valoration: 5.0,
-      avatar: 'Doctor',
-      cost: '$40.00',
-      profile: 'Especialista clínico.',
-      tags: ['Disponible hoy']
-    }));
+    .map(doc => {
+      const doctorClinic = realClinics.find(c => c.id === doc.clinic_id);
+      return {
+        id: doc.id,
+        name: `Dr. ${doc.first_name} ${doc.last_name}`,
+        specialty: doc.specialty || 'Médico General',
+        cedula: doc.license_number || 'En trámite',
+        clinic: doctorClinic?.name || 'Sin clínica asignada',
+        duration: '30 min',
+        valoration: 5.0,
+        avatar: 'Doctor',
+        cost: '$40.00',
+        profile: 'Especialista clínico.',
+        tags: ['Disponible hoy']
+      };
+    });
 
   const generateCalendarDays = () => {
     const days = [];
@@ -161,16 +183,26 @@ function Schedule() {
   };
   const calendarDays = generateCalendarDays();
 
-  const timeSlots = [
-    { time: '09:00 AM', status: 'available' },
-    { time: '09:30 AM', status: 'available' },
-    { time: '10:00 AM', status: 'available' }, 
-    { time: '11:00 AM', status: 'available' },
-    { time: '11:30 AM', status: 'available' },
-    { time: '02:00 PM', status: 'available' },
-    { time: '03:15 PM', status: 'available' },
-    { time: '04:00 PM', status: 'available' },
+  // Convertir hora display (09:00 AM) a formato DB (09:00:00) para comparar
+  const displayToDbTime = (displayTime) => {
+    const isPM = displayTime.includes('PM');
+    const parts = displayTime.replace(' AM', '').replace(' PM', '').split(':');
+    let hours = parseInt(parts[0]);
+    if (isPM && hours !== 12) hours += 12;
+    if (!isPM && hours === 12) hours = 0;
+    return `${hours.toString().padStart(2, '0')}:${parts[1]}:00`;
+  };
+
+  const baseTimeSlots = [
+    '09:00 AM', '09:30 AM', '10:00 AM', '11:00 AM',
+    '11:30 AM', '02:00 PM', '03:15 PM', '04:00 PM',
   ];
+
+  const timeSlots = baseTimeSlots.map(time => {
+    const dbTime = displayToDbTime(time);
+    const isBooked = bookedSlots.includes(dbTime);
+    return { time, status: isBooked ? 'occupied' : 'available' };
+  });
 
   const handleNext = () => {
     if (step < 6) setStep(step + 1);

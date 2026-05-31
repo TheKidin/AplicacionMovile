@@ -122,5 +122,38 @@ export const appointmentService = {
       
     if (error) throw error;
     return data;
+  },
+
+  // Obtener horarios ya ocupados para un doctor en una fecha específica
+  async getBookedSlots(doctorId, date) {
+    let query = supabase
+      .from('appointments')
+      .select('time')
+      .eq('date', date)
+      .in('status', ['SCHEDULED', 'WAITING', 'IN_PROGRESS']);
+
+    if (doctorId) {
+      query = query.eq('doctor_id', doctorId);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+    return (data || []).map(a => a.time); // ej: ['09:00:00', '10:00:00']
+  },
+
+  // Obtener todas las citas de una fecha específica (para StaffSchedule)
+  async getAppointmentsByDate(date) {
+    const { data, error } = await supabase
+      .from('appointments')
+      .select(`
+        *,
+        patient:patients(first_name, last_name),
+        doctor:profiles!appointments_doctor_id_fkey(first_name, last_name)
+      `)
+      .eq('date', date)
+      .order('time', { ascending: true });
+
+    if (error) throw error;
+    return data;
   }
 };
