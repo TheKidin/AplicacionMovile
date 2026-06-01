@@ -16,14 +16,12 @@ function Records() {
   const [avatar, setAvatar] = useState(null);
 
   useEffect(() => {
-    if (currentUser) {
-      setAvatar(authService.getAvatarLocal(currentUser.id));
-    }
     const loadData = async () => {
       if (authLoading) return;
       
       try {
         if (currentUser) {
+          setAvatar(authService.getAvatarLocal(currentUser.id));
           const patient = await patientService.getPatientByEmail(currentUser.email);
           if (patient) {
             setPatientData(patient);
