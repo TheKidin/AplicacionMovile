@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowLeft, Activity, Thermometer, Heart, Scale, Save } from 'lucide-react';
+import { ArrowLeft, Activity, Thermometer, Heart, Scale, Save, Droplets } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { patientService } from '../services/patientService';
@@ -35,7 +35,8 @@ function NurseVitals() {
     temperatura: '',
     frecuenciaCardiaca: '',
     peso: '',
-    estatura: ''
+    estatura: '',
+    oxigenacion: ''
   });
 
   const handleSave = async (e) => {
@@ -53,6 +54,7 @@ function NurseVitals() {
         heart_rate: parseInt(vitals.frecuenciaCardiaca),
         temperature: parseFloat(vitals.temperatura),
         weight: parseFloat(vitals.peso),
+        oxygen_saturation: parseInt(vitals.oxigenacion),
         recorded_by: currentUser.id
       });
       
@@ -130,10 +132,10 @@ function NurseVitals() {
             </div>
           </div>
 
-          {/* Frecuencia Cardíaca y Temperatura */}
-          <div style={{ display: 'flex', gap: '16px' }}>
+          {/* Frecuencia Cardíaca, Temperatura y Oxigenación */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
             
-            <div className="card" style={{ flex: 1, padding: '20px', borderLeft: '4px solid #F59E0B' }}>
+            <div className="card" style={{ padding: '20px', borderLeft: '4px solid #F59E0B' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
                 <Heart size={20} color="#F59E0B" />
                 <h3 style={{ fontSize: '13px', fontWeight: '800', color: '#1B2C66' }}>FC</h3>
@@ -152,7 +154,7 @@ function NurseVitals() {
               </div>
             </div>
 
-            <div className="card" style={{ flex: 1, padding: '20px', borderLeft: '4px solid #3B82F6' }}>
+            <div className="card" style={{ padding: '20px', borderLeft: '4px solid #3B82F6' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
                 <Thermometer size={20} color="#3B82F6" />
                 <h3 style={{ fontSize: '13px', fontWeight: '800', color: '#1B2C66' }}>Temp</h3>
@@ -169,6 +171,25 @@ function NurseVitals() {
                   required
                 />
                 <span style={{ fontSize: '12px', fontWeight: '700', color: '#9CA3AF', paddingBottom: '12px' }}>°C</span>
+              </div>
+            </div>
+
+            <div className="card" style={{ padding: '20px', borderLeft: '4px solid #0EA5E9', gridColumn: '1 / -1' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+                <Droplets size={20} color="#0EA5E9" />
+                <h3 style={{ fontSize: '13px', fontWeight: '800', color: '#1B2C66' }}>Oxigenación (SpO2)</h3>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px' }}>
+                <input 
+                  type="number" 
+                  inputMode="numeric"
+                  placeholder="98"
+                  style={{ width: '100%', padding: '12px', backgroundColor: '#F3F4F6', border: 'none', borderRadius: '12px', fontSize: '18px', fontWeight: '700', textAlign: 'center', outline: 'none' }}
+                  value={vitals.oxigenacion}
+                  onChange={e => setVitals({...vitals, oxigenacion: e.target.value})}
+                  required
+                />
+                <span style={{ fontSize: '12px', fontWeight: '700', color: '#9CA3AF', paddingBottom: '12px' }}>%</span>
               </div>
             </div>
 
