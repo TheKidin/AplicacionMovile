@@ -15,7 +15,9 @@ function PatientVitals() {
           const patient = await patientService.getPatientByEmail(user.email);
           if (patient) {
             const data = await patientService.getPatientVitals(patient.id);
-            if (data) setVitals(data);
+            if (data && data.length > 0) {
+              setVitals(data[0]);
+            }
           }
         }
       } catch (err) {

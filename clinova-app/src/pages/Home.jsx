@@ -57,7 +57,8 @@ function Home() {
             const patient = await patientService.getPatientByEmail(user.email);
             if (patient) {
               const appts = await appointmentService.getPatientAppointments(patient.id);
-              setAppointments(appts || []);
+              const upcomingAppts = (appts || []).filter(a => a.status !== 'COMPLETED' && a.status !== 'CANCELLED');
+              setAppointments(upcomingAppts);
             }
           } catch (err) {
             console.error("Error fetching appointments:", err);

@@ -167,8 +167,19 @@ function Records() {
                 </div>
                 <div style={{ backgroundColor: '#FEF2F2', padding: '12px', borderRadius: '8px' }}>
                   <p style={{ fontSize: '11px', fontWeight: '800', color: '#9CA3AF', marginBottom: '4px' }}>RECETA MÉDICA</p>
-                  <p style={{ fontSize: '13px', fontWeight: '700', color: '#991B1B', marginBottom: '4px' }}>{med}</p>
-                  {indic && <p style={{ fontSize: '12px', color: '#B91C1C' }}>{indic}</p>}
+                  {Array.isArray(notes.prescription) && notes.prescription.length > 0 ? (
+                    notes.prescription.map(p => (
+                      <div key={p.id || p.med} style={{ marginBottom: '8px', borderBottom: '1px solid #FCA5A5', paddingBottom: '4px' }}>
+                        <p style={{ fontSize: '13px', fontWeight: '700', color: '#991B1B', marginBottom: '2px' }}>{p.med}</p>
+                        <p style={{ fontSize: '12px', color: '#B91C1C' }}>{p.dosis} - Cada {p.frecuencia} por {p.dias}</p>
+                      </div>
+                    ))
+                  ) : (
+                    <>
+                      <p style={{ fontSize: '13px', fontWeight: '700', color: '#991B1B', marginBottom: '4px' }}>{med}</p>
+                      {indic && <p style={{ fontSize: '12px', color: '#B91C1C' }}>{indic}</p>}
+                    </>
+                  )}
                 </div>
               </div>
             );
